@@ -70,7 +70,7 @@ struct SwappingView : View_base<RangeOrView> { // i.e. view adapter
     return get_hlp(std::forward_as_tuple(args...),typename detail::gens_rev<sizeof...(Args)>::type());
   }
   template <typename... Args>
-  bool put(Args&... args) {
+  bool put(Args&&... args) {
     return put_hlp(std::forward_as_tuple(args...),typename detail::gens_rev<sizeof...(Args)>::type());
   }
 private:
