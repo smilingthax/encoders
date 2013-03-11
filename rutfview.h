@@ -61,12 +61,13 @@ struct fwd_all {
   static bool get(BaseView &view,CharInfo &ret,UTF32 *) { // {{{
     if (!view.get(ret.ch)) return false;
     ret.len=1;
-    return (detail::isInRange(ret.ch));
+    return (detail::isInRange(ret.ch))&&(!detail::isSurrogate(ret.ch));
   }
   // }}}
 
   static bool put(BaseView &view,unsigned int ch,UTF16 *) { // {{{
-    if (!isInRange(ch)) return false;
+    if ( (!detail::isInRange(ch))||
+         (detail::isSurrogate(ch)) ) return -1;
     if (ch>0xffff) {
       return view.put(leadSurrogate(ch),trailSurrogate(ch));
     }
@@ -75,7 +76,8 @@ struct fwd_all {
   // }}}
 
   static bool put(BaseView &view,unsigned int ch,UTF32 *) { // {{{
-    if (!isInRange(ch)) return false;
+    if ( (!detail::isInRange(ch))||
+         (detail::isSurrogate(ch)) ) return -1;
     return view.put(ch);
   }
   // }}}
@@ -113,7 +115,6 @@ struct fwd : fwd_all<BaseView> {
       if (!view.get(c1)) return false;
       return (c1==0x80);
     }
-
     if (!getMoreUTF8(view,ret)) return false;
     return (getMoreCESU8(view,ret));
   }
@@ -200,7 +201,7 @@ private:
       CharInfo r2=getFirstUTF8(c3);
       if (!getMoreUTF8(view,r2)) return false;
       ret.len+=r2.len;
-      getSecondUTF16(ret,r2.ch);
+      getSecondUTF16(ret,r2.ch); // will -1, if not a trail surrogate
       if (ret.len<0) return false;
     } else if (isTrailSurrogate(ret.ch)) {
       return false;
@@ -254,20 +255,9 @@ struct fwd<BaseView,true> : fwd_all<BaseView> { // continuous
 
   static bool get(BaseView &view,CharInfo &ret,CESU8 *) { // {{{
     ret=rawgetUTF8(view.ptr(),view.size());
-    if (ret.len>0) {
-      view.next(ret.len);
-      if (isLeadSurrogate(ret.ch)) {
-        CharInfo r2=rawgetUTF8(view.ptr(),view.size());
-        if (r2.len<0) return false;
-        view.next(r2.len);
-        ret.len+=r2.len;
-        getSecondUTF16(ret,r2.ch); // will -1, if not a trail surrogate
-        if (ret.len<0) return false;
-      } else if (isTrailSurrogate(ret.ch)) {
-        return false;
-      }
-    }
-    return true;
+    if (ret.len<=0) return false;
+    view.next(ret.len);
+    return (getMoreCESU8(view,ret));
   }
   // }}}
 
@@ -319,6 +309,22 @@ struct fwd<BaseView,true> : fwd_all<BaseView> { // continuous
       return view.put(0xc0,0x80);
     }
     return put(view,ch,(CESU8 *)0);
+  }
+  // }}}
+
+private:
+  static bool getMoreCESU8(BaseView &view,CharInfo &ret) { // {{{
+    if (isLeadSurrogate(ret.ch)) {
+      CharInfo r2=rawgetUTF8(view.ptr(),view.size());
+      if (r2.len<0) return false;
+      view.next(r2.len);
+      ret.len+=r2.len;
+      getSecondUTF16(ret,r2.ch); // will -1, if not a trail surrogate
+      if (ret.len<=0) return false;
+    } else if (isTrailSurrogate(ret.ch)) {
+      return false;
+    }
+    return true;
   }
   // }}}
 
