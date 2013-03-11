@@ -15,10 +15,16 @@ struct unbounded_range_tag {};    // needs value_type, done() fn, might have has
 struct bounded_range_tag {};      // e.g. std::pair<InputIterator,>, but no size() [e.g. not RandomAccessIterator]
 struct sized_range_tag : bounded_range_tag {};   // begin(Range), [end(Range),] size()
 
+// forward declarations  ... these can also be extended by the user
 template <typename Range,typename Enable=void>
 struct range_done;
 
+template <typename Range,typename Enable=void>
+struct range_continuous_trait;
+
 namespace detail {
+
+using ::detail::remove_cv; // has_member.h
 
 #ifdef EE_CPP11
   using std::enable_if;
@@ -128,6 +134,16 @@ struct sized_iterator {
   Iterator it,end;
 };
 
+template <typename Range,typename Tag,
+          bool Continuous=range_continuous_trait<Range>::value >
+struct range_trait {
+  typedef Tag category;
+//  typedef Range range_t;
+  static const bool continuous=Continuous;
+  static const bool sized=is_same<Tag,sized_range_tag>::value;
+  // iterator, make_iterator
+};
+
 } // namespace detail
 
 // can be extended by user
@@ -146,9 +162,16 @@ struct range_done<Iterator,typename detail::enable_if<has_member<Iterator,detail
   }
 };
 
+// can be extended by user (or rangeview_traits.h)
+template <typename Range,typename Enable>
+struct range_continuous_trait {
+  static const bool value=false;
+};
+
 template <typename Range,typename Enable=void>
-struct range_traits {
-  typedef unbounded_range_tag category;
+struct range_traits
+  : detail::range_trait<Range,unbounded_range_tag> {
+
   typedef detail::unbounded_iterator<Range> iterator;
   static iterator make_iterator(Range &range) {
     return iterator(range);
@@ -162,8 +185,9 @@ template <typename Range>
 struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::check_beginend>::value &&
                                                      !has_member<Range,detail::check_size>::value &&
                                                      !detail::is_random_access<typename Range::iterator>::value
-                                                    >::type> {
-  typedef bounded_range_tag category;
+                                                    >::type>
+  : detail::range_trait<Range,bounded_range_tag> {
+
   typedef detail::bounded_iterator<typename Range::iterator> iterator;
   static iterator make_iterator(Range &range) {
     return iterator(range.begin(),range.end());
@@ -177,8 +201,9 @@ template <typename Range>
 struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::check_beginend>::value &&
                                                      has_member<Range,detail::check_size>::value &&
                                                      !detail::is_random_access<typename Range::iterator>::value
-                                                    >::type> {
-  typedef sized_range_tag category;
+                                                    >::type>
+  : detail::range_trait<Range,sized_range_tag> {
+
   typedef detail::emulated_sized_iterator<typename Range::iterator> iterator;
   static iterator make_iterator(Range &range) {
     return iterator(range.begin(),range.end(),range.size());
@@ -188,11 +213,13 @@ struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::ch
   }
 };
 
+// TODO? kind-of continuous
 template <typename Range>
 struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::check_beginend>::value &&
                                                      detail::is_random_access<typename Range::iterator>::value
-                                                    >::type> {
-  typedef sized_range_tag category;
+                                                    >::type>
+  : detail::range_trait<Range,sized_range_tag> {
+
   typedef detail::sized_iterator<typename Range::iterator> iterator;
   static iterator make_iterator(Range &range) {
     return iterator(range.begin(),range.end());
@@ -206,8 +233,9 @@ struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::ch
 template <typename Iterator>
 struct range_traits<std::pair<Iterator,Iterator>,
                     typename detail::enable_if<!detail::is_random_access<Iterator>::value
-                                              >::type> {
-  typedef bounded_range_tag category;
+                                              >::type>
+  : detail::range_trait<std::pair<Iterator,Iterator>,bounded_range_tag> {
+
   typedef detail::bounded_iterator<Iterator> iterator;
   static iterator make_iterator(const std::pair<Iterator,Iterator> &range) {
     return iterator(range.first,range.second);
@@ -217,8 +245,9 @@ struct range_traits<std::pair<Iterator,Iterator>,
 template <typename Iterator>
 struct range_traits<std::pair<Iterator,Iterator>,
                     typename detail::enable_if<detail::is_random_access<Iterator>::value
-                                              >::type> {
-  typedef sized_range_tag category;
+                                              >::type>
+  : detail::range_trait<std::pair<Iterator,Iterator>,sized_range_tag> {
+
   typedef detail::sized_iterator<Iterator> iterator;
   static iterator make_iterator(const std::pair<Iterator,Iterator> &range) {
     return iterator(range.first,range.second);
@@ -231,8 +260,9 @@ struct range_traits<const std::pair<Iterator,Iterator> >
 
 // Array types
 template <typename T>
-struct range_traits<T []> {
-  typedef unbounded_range_tag category;
+struct range_traits<T []>
+  : detail::range_trait<T [],unbounded_range_tag,true> {
+
   typedef detail::unbounded_iterator<T *> iterator;
   static iterator make_iterator(T range[]) {
     return iterator(range);
@@ -240,11 +270,43 @@ struct range_traits<T []> {
 };
 
 template <typename T,int N>
-struct range_traits<T [N]> {
-  typedef sized_range_tag category;
+struct range_traits<T [N]>
+  : detail::range_trait<T [N],sized_range_tag,true> {
+
   typedef detail::sized_iterator<T *> iterator;
   static iterator make_iterator(T range[N]) {
     return iterator(range,range+N);
+  }
+};
+
+// 'modified types'
+template <typename T>
+struct zeroterminated { // NOTE: could be continuous or not. T must at least be iterable twice (e.g. forward iterator)
+  typedef T type;
+};
+
+// TODO: idea: if not forward iterable (or continuous?, copyable?), do not make a sized_range, but a bounded_range
+//   (i.e. implement 'done' ... problem: need 'lookahead'/pre-increment)
+template <typename T>
+struct range_traits<zeroterminated<T> >
+  : range_traits<std::pair<T,T> > {
+
+  typedef range_traits<std::pair<T,T> > base_t;
+  typedef typename base_t::iterator iterator;
+
+  static iterator make_iterator(typename detail::remove_cv<T>::type &range) {
+    typename detail::remove_cv<T>::type end=range;
+    while (*end) {
+      ++end;
+    }
+    return base_t::make_iterator(std::make_pair(range,end));
+  }
+  static iterator make_iterator(const T &range) {
+    typename detail::remove_cv<T>::type end=range;
+    while (*end) {
+      ++end;
+    }
+    return base_t::make_iterator(std::make_pair(range,end));
   }
 };
 

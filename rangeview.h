@@ -94,12 +94,12 @@ template <typename RangeOrView,bool B>
 struct View_base;
 
 // Range can be std::pair<Iterator,Iterator> or something
-template <typename Range,bool Sized=rangeview_traits<Range>::sized>
+template <typename Range,bool Sized=range_traits<Range>::sized>
 struct RangeView : View_base<Range,false> {
-  typedef typename rangeview_traits<Range>::iterator::value_type value_type;
+  typedef typename range_traits<Range>::iterator::value_type value_type;
 
-  RangeView(typename detail::remove_cv<Range>::type &range) : it(rangeview_traits<Range>::make_iterator(range)) {}
-  RangeView(const Range &range) : it(rangeview_traits<Range>::make_iterator(range)) {}
+  RangeView(typename detail::remove_cv<Range>::type &range) : it(range_traits<Range>::make_iterator(range)) {}
+  RangeView(const Range &range) : it(range_traits<Range>::make_iterator(range)) {}
 
 #ifdef EE_CPP11
   template <typename Arg0,typename... Args>
@@ -166,22 +166,22 @@ private:
     return true;
   }
 private:
-  typename rangeview_traits<Range>::iterator it;
+  typename range_traits<Range>::iterator it;
 };
 
 template <typename Range>
 struct RangeView<Range,true> : View_base<Range,false> {
-  typedef typename rangeview_traits<Range>::iterator::value_type value_type;
+  typedef typename range_traits<Range>::iterator::value_type value_type;
 
-  RangeView(typename detail::remove_cv<Range>::type &range) : it(rangeview_traits<Range>::make_iterator(range)) {}
-  RangeView(const Range &range) : it(rangeview_traits<Range>::make_iterator(range)) {}
+  RangeView(typename detail::remove_cv<Range>::type &range) : it(range_traits<Range>::make_iterator(range)) {}
+  RangeView(const Range &range) : it(range_traits<Range>::make_iterator(range)) {}
 
   size_t size() const {
     return it.size();
   }
 
   value_type *ptr() {
-    const bool Continuous=rangeview_traits<Range>::continuous;
+    const bool Continuous=range_traits<Range>::continuous;
     return (Continuous)?&*it:0;
   }
 
@@ -258,7 +258,7 @@ private:
     it.next();
   }
 private:
-  typename rangeview_traits<Range>::iterator it;
+  typename range_traits<Range>::iterator it;
 };
 
 namespace detail {
@@ -274,10 +274,10 @@ struct View_base {
 
   typedef RangeOrView parent_t;
 
-  static const bool sized=rangeview_traits<range_t>::sized &&
+  static const bool sized=range_traits<range_t>::sized &&
                           has_member<view_t,detail::check_size>::value;
   static const bool continuous=!parent_is_view &&
-                               rangeview_traits<RangeOrView>::continuous;
+                               range_traits<RangeOrView>::continuous;
 };
 
 template <typename RangeOrView>
@@ -289,7 +289,7 @@ struct View_base<RangeOrView,true> {
 
   typedef RangeOrView parent_t;
 
-  static const bool sized=rangeview_traits<range_t>::sized &&
+  static const bool sized=range_traits<range_t>::sized &&
                           has_member<view_t,detail::check_size>::value;
   static const bool continuous=false;
 };
