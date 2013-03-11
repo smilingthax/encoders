@@ -67,10 +67,17 @@ struct check_beginend {
   > struct get {};
 };
 
+template <typename Tag>
+struct check_iterator_tag {
+  static void fn(Tag) {}
+  template <typename T,
+            int X=sizeof(check_iterator_tag<Tag>::fn(typename std::iterator_traits<T>::iterator_category()),0)
+  > struct get {};
+};
+
 template <typename Iterator>
 struct is_random_access {
-  static const bool value=is_same<typename std::iterator_traits<Iterator>::iterator_category,
-                                  std::random_access_iterator_tag>::value;
+  static const bool value=has_member<Iterator,check_iterator_tag<std::random_access_iterator_tag> >::value;
 };
 
 template <typename Iterator>
@@ -82,6 +89,20 @@ struct unbounded_iterator {
   unbounded_iterator(const Iterator &it) : it(it) {}
 
   bool done() const { return range_done<Iterator>::done(it); }
+  reference operator*() const { return *it; }
+  void next() { ++it; }
+
+  Iterator it;
+};
+
+template <typename Iterator>
+struct falseterminated_iterator {
+  typedef typename std::iterator_traits<Iterator>::value_type value_type;
+  typedef typename std::iterator_traits<Iterator>::reference reference;
+
+  falseterminated_iterator(const Iterator &it) : it(it) {}
+
+  bool done() const { return (!*it); }
   reference operator*() const { return *it; }
   void next() { ++it; }
 
@@ -173,7 +194,7 @@ struct range_traits
   : detail::range_trait<Range,unbounded_range_tag> {
 
   typedef detail::unbounded_iterator<Range> iterator;
-  static iterator make_iterator(Range &range) {
+  static iterator make_iterator(typename detail::remove_cv<Range>::type &range) {
     return iterator(range);
   }
   static iterator make_iterator(const Range &range) {
@@ -205,7 +226,7 @@ struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::ch
   : detail::range_trait<Range,sized_range_tag> {
 
   typedef detail::emulated_sized_iterator<typename Range::iterator> iterator;
-  static iterator make_iterator(Range &range) {
+  static iterator make_iterator(typename detail::remove_cv<Range>::type &range) {
     return iterator(range.begin(),range.end(),range.size());
   }
   static iterator make_iterator(const Range &range) {
@@ -221,7 +242,7 @@ struct range_traits<Range,typename detail::enable_if<has_member<Range,detail::ch
   : detail::range_trait<Range,sized_range_tag> {
 
   typedef detail::sized_iterator<typename Range::iterator> iterator;
-  static iterator make_iterator(Range &range) {
+  static iterator make_iterator(typename detail::remove_cv<Range>::type &range) {
     return iterator(range.begin(),range.end());
   }
   static iterator make_iterator(const Range &range) {
@@ -279,16 +300,34 @@ struct range_traits<T [N]>
   }
 };
 
-// 'modified types'
+// 'modified types':  falseterminate<T>, ...
 template <typename T>
-struct zeroterminated { // NOTE: could be continuous or not. T must at least be iterable twice (e.g. forward iterator)
+struct falseterminated { // NOTE: could be continuous or not.
+  // is T at least be iterable twice (e.g. forward iterator)?  -- user can add specialization
+  static const bool peekBefore=has_member<T,detail::check_iterator_tag<std::forward_iterator_tag> >::value ||
+                                            range_continuous_trait<T>::value;
   typedef T type;
 };
 
-// TODO: idea: if not forward iterable (or continuous?, copyable?), do not make a sized_range, but a bounded_range
-//   (i.e. implement 'done' ... problem: need 'lookahead'/pre-increment)
 template <typename T>
-struct range_traits<zeroterminated<T> >
+struct range_traits<falseterminated<T>,
+                    typename detail::enable_if<!falseterminated<T>::peekBefore
+                   >::type>
+  : detail::range_trait<T,unbounded_range_tag> {
+  typedef detail::falseterminated_iterator<T> iterator;
+
+  static iterator make_iterator(typename detail::remove_cv<T>::type &range) {
+    return iterator(range);
+  }
+  static iterator make_iterator(const T &range) {
+    return iterator(range);
+  }
+};
+
+template <typename T>
+struct range_traits<falseterminated<T>,
+                    typename detail::enable_if<falseterminated<T>::peekBefore
+                   >::type>
   : range_traits<std::pair<T,T> > {
 
   typedef range_traits<std::pair<T,T> > base_t;

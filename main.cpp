@@ -9,11 +9,11 @@ namespace Ranges {
 #if 1
 template <>
 struct range_traits<char *>
-  : range_traits<zeroterminated<char *> > {};
+  : range_traits<falseterminated<char *> > {};
 
 template <>
 struct range_traits<const char *>
-  : range_traits<zeroterminated<char *> > {};
+  : range_traits<falseterminated<char *> > {};
 #endif
 
 #if 0
