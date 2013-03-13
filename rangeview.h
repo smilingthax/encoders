@@ -17,7 +17,7 @@ namespace Ranges {
 namespace detail {
 #ifdef EE_CPP11
 // helper to execute('map') parameter pack:  pass({(f(args),0)...});
-inline void pass(const std::initializer_list<int> &) {}
+static inline void pass(const std::initializer_list<int> &) {}
 #else
 struct nil {};
 
@@ -26,29 +26,29 @@ struct nil {};
   rettype name(T0 constspec &t0) { \
     return name<1,               T0,const detail::nil,const detail::nil,const detail::nil, \
                   const detail::nil,const detail::nil,const detail::nil,const detail::nil> \
-                 (           t0,detail::nil(),detail::nil(),detail::nil(), \
-                  detail::nil(),detail::nil(),detail::nil(),detail::nil()); \
+                 (               t0,    detail::nil(),    detail::nil(),    detail::nil(), \
+                      detail::nil(),    detail::nil(),    detail::nil(),    detail::nil()); \
   } \
   template <typename T0,typename T1> \
   rettype name(T0 constspec &t0,T1 constspec &t1) { \
     return name<2,               T0,               T1,const detail::nil,const detail::nil, \
                   const detail::nil,const detail::nil,const detail::nil,const detail::nil> \
-                 (           t0,           t1,detail::nil(),detail::nil(), \
-                  detail::nil(),detail::nil(),detail::nil(),detail::nil()); \
+                 (               t0,           t1,detail::nil(),detail::nil(), \
+                      detail::nil(),detail::nil(),detail::nil(),detail::nil()); \
   } \
   template <typename T0,typename T1,typename T2> \
   rettype name(T0 constspec &t0,T1 constspec &t1,T2 constspec &t2) { \
     return name<3,               T0,               T1,               T2,const detail::nil, \
                   const detail::nil,const detail::nil,const detail::nil,const detail::nil> \
-                 (           t0,           t1,           t2,detail::nil(), \
-                  detail::nil(),detail::nil(),detail::nil(),detail::nil()); \
+                 (               t0,               t1,               t2,    detail::nil(), \
+                      detail::nil(),    detail::nil(),    detail::nil(),    detail::nil()); \
   } \
   template <typename T0,typename T1,typename T2,typename T3> \
   rettype name(T0 constspec &t0,T1 constspec &t1,T2 constspec &t2,T3 constspec &t3) { \
     return name<4,               T0,               T1,               T2,               T3, \
                   const detail::nil,const detail::nil,const detail::nil,const detail::nil> \
-                 (           t0,           t1,           t2,           t3, \
-                  detail::nil(),detail::nil(),detail::nil(),detail::nil()); \
+                 (               t0,               t1,               t2,               t3, \
+                      detail::nil(),    detail::nil(),    detail::nil(),    detail::nil()); \
   } \
   template <typename T0,typename T1,typename T2,typename T3, \
             typename T4> \
@@ -56,8 +56,8 @@ struct nil {};
                T4 constspec &t4) { \
     return name<5,               T0,               T1,               T2,               T3, \
                                  T4,const detail::nil,const detail::nil,const detail::nil> \
-                 (           t0,           t1,           t2,           t3, \
-                             t4,detail::nil(),detail::nil(),detail::nil()); \
+                 (               t0,               t1,               t2,               t3, \
+                                 t4,    detail::nil(),    detail::nil(),    detail::nil()); \
   } \
   template <typename T0,typename T1,typename T2,typename T3, \
             typename T4,typename T5> \
@@ -65,8 +65,8 @@ struct nil {};
                T4 constspec &t4,T5 constspec &t5) { \
     return name<6,               T0,               T1,               T2,               T3, \
                                  T4,               T5,const detail::nil,const detail::nil> \
-                 (           t0,           t1,           t2,           t3, \
-                             t4,           t5,detail::nil(),detail::nil()); \
+                 (               t0,               t1,               t2,               t3, \
+                                 t4,               t5,    detail::nil(),    detail::nil()); \
   } \
   template <typename T0,typename T1,typename T2,typename T3, \
             typename T4,typename T5,typename T6> \
@@ -74,8 +74,8 @@ struct nil {};
                T4 constspec &t4,T5 constspec &t5,T6 constspec &t6) { \
     return name<7,               T0,               T1,               T2,               T3, \
                                  T4,               T5,               T6,const detail::nil> \
-                 (           t0,           t1,           t2,           t3, \
-                             t4,           t5,           t6,detail::nil()); \
+                 (               t0,               t1,               t2,               t3, \
+                                 t4,               t5,               t6,    detail::nil()); \
   } \
   template <typename T0,typename T1,typename T2,typename T3, \
             typename T4,typename T5,typename T6,typename T7> \
@@ -83,10 +83,20 @@ struct nil {};
                T4 constspec &t4,T5 constspec &t5,T6 constspec &t6,T7 constspec &t7) { \
     return name<8,               T0,               T1,               T2,               T3, \
                                  T4,               T5,               T6,               T7> \
-                 (           t0,           t1,           t2,           t3, \
-                             t4,           t5,           t6,           t7); \
+                 (               t0,               t1,               t2,               t3, \
+                                 t4,               t5,               t6,               t7); \
   }
 #endif
+
+template <bool Expansible,typename Iterator>
+inline bool call_request(Iterator &it,typename enable_if<!Expansible,size_t>::type minlen) {
+  return false;
+}
+
+template <bool Expansible,typename Iterator>
+inline bool call_request(Iterator &it,typename enable_if<Expansible,size_t>::type minlen) {
+  return it.request(minlen);
+}
 
 } // namespace detail
 
@@ -96,10 +106,15 @@ struct View_base;
 // Range can be std::pair<Iterator,Iterator> or something
 template <typename Range,bool Sized=range_traits<Range>::sized>
 struct RangeView : View_base<Range,false> {
+  typedef View_base<Range,false> base_t;
   typedef typename range_traits<Range>::iterator::value_type value_type;
 
-  RangeView(typename detail::remove_cv<Range>::type &range) : it(range_traits<Range>::make_iterator(range)) {}
-  RangeView(const Range &range) : it(range_traits<Range>::make_iterator(range)) {}
+  explicit RangeView(typename detail::remove_cv<typename base_t::ctor_t>::type &range) : it(range_traits<Range>::make_iterator(range)) {}
+  explicit RangeView(const typename base_t::ctor_t &range) : it(range_traits<Range>::make_iterator(range)) {}
+
+  bool request(size_t minlen) {
+    return detail::call_request<View_base<Range,false>::expansible>(it,minlen);
+  }
 
 #ifdef EE_CPP11
   template <typename Arg0,typename... Args>
@@ -110,16 +125,26 @@ struct RangeView : View_base<Range,false> {
     return true;
   }
 
-  template <typename Arg0,typename... Args>
-  bool put(Arg0 &arg0,Args&... args) {
-    return (put_safe(arg0))&&(put(args...));
+  template <typename... Args>
+  bool put(Args&... args) {
+    if (View_base<Range,false>::expansible) {
+      if (!request(sizeof...(args))) {
+        return false;
+      }
+    }
+    return put_hlp(args...);
   }
-  bool put() {
+
+private:
+  template <typename Arg0,typename... Args>
+  bool put_hlp(Arg0 &arg0,Args&... args) {
+    return (put_safe(arg0))&&(put_hlp(args...));
+  }
+  bool put_hlp() {
     return true;
   }
 #else
   FORWARD_WITH_NIL(bool,get,)
-  FORWARD_WITH_NIL(bool,put,)
   FORWARD_WITH_NIL(bool,put,const)
   template <int N,typename T0,typename T1,typename T2,typename T3,
                   typename T4,typename T5,typename T6,typename T7>
@@ -130,6 +155,11 @@ struct RangeView : View_base<Range,false> {
                   typename T4,typename T5,typename T6,typename T7>
   bool put(const T0 &t0,const T1 &t1,const T2 &t2,const T3 &t3,
            const T4 &t4,const T5 &t5,const T6 &t6,const T7 &t7) {
+    if (View_base<Range,false>::expansible) {
+      if (!request(N)) {
+        return false;
+      }
+    }
     return do_nonnil_and_put_safe(t0,t1,t2,t3,t4,t5,t6,t7);
   }
 private:
@@ -171,18 +201,25 @@ private:
 
 template <typename Range>
 struct RangeView<Range,true> : View_base<Range,false> {
+  typedef View_base<Range,false> base_t;
   typedef typename range_traits<Range>::iterator::value_type value_type;
 
-  RangeView(typename detail::remove_cv<Range>::type &range) : it(range_traits<Range>::make_iterator(range)) {}
-  RangeView(const Range &range) : it(range_traits<Range>::make_iterator(range)) {}
+  explicit RangeView(typename detail::remove_cv<typename base_t::ctor_t>::type &range) : it(range_traits<Range>::make_iterator(range)) {}
+  explicit RangeView(const typename base_t::ctor_t &range) : it(range_traits<Range>::make_iterator(range)) {}
+
+  bool request(size_t minlen) {
+    if (minlen<=it.size()) {
+      return true;
+    }
+    return detail::call_request<View_base<Range,false>::expansible>(it,minlen-it.size());
+  }
 
   size_t size() const {
     return it.size();
   }
 
   value_type *ptr() {
-    const bool Continuous=range_traits<Range>::continuous;
-    return (Continuous)?&*it:0;
+    return (View_base<Range,false>::continuous)?&*it:0;
   }
 
   void next(size_t num) { // for ptr()-access
@@ -202,7 +239,7 @@ struct RangeView<Range,true> : View_base<Range,false> {
   }
   template <typename... Args>
   bool put(Args&&... args) {
-    if (it.size()<sizeof...(args)) {
+    if (!request(sizeof...(args))) {
       return false;
     }
     detail::pass({(put_one(args),0)...});
@@ -210,7 +247,6 @@ struct RangeView<Range,true> : View_base<Range,false> {
   }
 #else
   FORWARD_WITH_NIL(bool,get,)
-  FORWARD_WITH_NIL(bool,put,)
   FORWARD_WITH_NIL(bool,put,const)
   template <int N,typename T0,typename T1,typename T2,typename T3,
                   typename T4,typename T5,typename T6,typename T7>
@@ -225,7 +261,7 @@ struct RangeView<Range,true> : View_base<Range,false> {
                   typename T4,typename T5,typename T6,typename T7>
   bool put(const T0 &t0,const T1 &t1,const T2 &t2,const T3 &t3,
            const T4 &t4,const T5 &t5,const T6 &t6,const T7 &t7) {
-    if (it.size()<N) {
+    if (!request(N)) {
       return false;
     }
     do_nonnil_put_one(t0,t1,t2,t3,t4,t5,t6,t7);
@@ -271,13 +307,15 @@ struct View_base {
 
   typedef RangeView<RangeOrView> view_t;
   typedef RangeOrView range_t;
+  typedef typename detail::unmodified_range<RangeOrView>::type ctor_t;
 
   typedef RangeOrView parent_t;
 
   static const bool sized=range_traits<range_t>::sized &&
                           has_member<view_t,detail::check_size>::value;
   static const bool continuous=!parent_is_view &&
-                               range_traits<RangeOrView>::continuous;
+                               range_traits<range_t>::continuous;
+  static const bool expansible=range_traits<range_t>::expansible;
 };
 
 template <typename RangeOrView>
@@ -286,12 +324,14 @@ struct View_base<RangeOrView,true> {
 
   typedef RangeOrView view_t;
   typedef typename RangeOrView::range_t range_t;
+  typedef typename RangeOrView::ctor_t ctor_t;
 
   typedef RangeOrView parent_t;
 
   static const bool sized=range_traits<range_t>::sized &&
                           has_member<view_t,detail::check_size>::value;
   static const bool continuous=false;
+  static const bool expansible=range_traits<range_t>::expansible;
 };
 
 namespace detail {

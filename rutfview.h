@@ -202,7 +202,7 @@ private:
       if (!getMoreUTF8(view,r2)) return false;
       ret.len+=r2.len;
       getSecondUTF16(ret,r2.ch); // will -1, if not a trail surrogate
-      if (ret.len<0) return false;
+      if (ret.len<=0) return false;
     } else if (isTrailSurrogate(ret.ch)) {
       return false;
     }
@@ -276,8 +276,7 @@ struct fwd<BaseView,true> : fwd_all<BaseView> { // continuous
   static bool put(BaseView &view,unsigned int ch,UTF8 *) { // {{{
     if (isSurrogate(ch)) return false;
     const signed char len=enclenUTF8(ch);
-    if (len<=0) return false;
-    if (view.size()<(size_t)len) {
+    if ( (len<=0)||(!view.request(len)) ) {
       return false;
     } else if (!rawputUTF8(view.ptr(),ch,len)) {
       return false;
@@ -290,7 +289,7 @@ struct fwd<BaseView,true> : fwd_all<BaseView> { // continuous
   static bool put(BaseView &view,unsigned int ch,CESU8 *) { // {{{
     if (!isInRange(ch)) return false;
     if (ch>0xffff) {
-      if (view.size()<6) return false;
+      if (view.request(6)) return false;
       unsigned short c0=leadSurrogate(ch),
                      c1=trailSurrogate(ch);
       if ( (!rawputUTF8(view.ptr(),c0,3))||
@@ -337,8 +336,8 @@ struct UTFView : View_base<RangeOrView> {
   typedef View_base<RangeOrView> base_t;
   typedef typename base_t::view_t view_t;
 
-  UTFView(typename detail::remove_cv<RangeOrView>::type &rov) : view(rov) {}
-  UTFView(const RangeOrView &rov) : view(rov) {}
+  explicit UTFView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : view(rov) {}
+  explicit UTFView(const typename base_t::ctor_t &rov) : view(rov) {}
 
   bool get(UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
     return detail::fwd<view_t,base_t::continuous>::get(view,ret,(Encoding *)0);

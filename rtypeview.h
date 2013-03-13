@@ -95,10 +95,11 @@ struct LEEncoder {
 
 template <typename Type,typename RangeOrView>
 struct LETypeView : View_base<RangeOrView> {
-  typedef typename View_base<RangeOrView>::view_t view_t;
+  typedef View_base<RangeOrView> base_t;
+  typedef typename base_t::view_t view_t;
 
-  LETypeView(typename detail::remove_cv<RangeOrView>::type &rov) : view(rov) {}
-  LETypeView(const RangeOrView &rov) : view(rov) {}
+  explicit LETypeView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : view(rov) {}
+  explicit LETypeView(const typename base_t::ctor_t &rov) : view(rov) {}
 
   size_t size() const { // only if base_t::sized
     return view.size()/sizeof(Type);
@@ -133,10 +134,10 @@ using BETypeView = LETypeView<Type,SwappingView<RangeOrView>>;
 #else    // no template typedef in C++03
 template <typename Type,typename RangeOrView>
 struct BETypeView : LETypeView<Type,SwappingView<RangeOrView> > {
-  BETypeView(typename detail::remove_cv<RangeOrView>::type &rov)
+  explicit BETypeView(typename detail::remove_cv<RangeOrView>::type &rov)
     : LETypeView<Type,SwappingView<RangeOrView> >(rov)
   {}
-  BETypeView(const RangeOrView &rov)
+  explicit BETypeView(const RangeOrView &rov)
     : LETypeView<Type,SwappingView<RangeOrView> >(rov)
   {}
 };

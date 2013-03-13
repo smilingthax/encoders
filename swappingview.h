@@ -55,10 +55,15 @@ struct shift_by<0,T0,T1,T2,T3,T4,T5,T6,T7> {
 
 template <typename RangeOrView>
 struct SwappingView : View_base<RangeOrView> { // i.e. view adapter
-  typedef typename View_base<RangeOrView>::view_t view_t;
+  typedef View_base<RangeOrView> base_t;
+  typedef typename base_t::view_t view_t;
 
-  SwappingView(typename detail::remove_cv<RangeOrView>::type &rov) : view(rov) {}
-  SwappingView(const RangeOrView &rov) : view(rov) {}
+  explicit SwappingView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : view(rov) {}
+  explicit SwappingView(const typename base_t::ctor_t &rov) : view(rov) {}
+
+  bool request(size_t minlen) {
+    return view.request(minlen);
+  }
 
   size_t size() const { // base_t::sized
     return view.size();
@@ -84,7 +89,6 @@ private:
   }
 #else
   FORWARD_WITH_NIL(bool,get,)
-  FORWARD_WITH_NIL(bool,put,)
   FORWARD_WITH_NIL(bool,put,const)
 private:
   template <int N,typename T0,typename T1,typename T2,typename T3,

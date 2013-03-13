@@ -85,13 +85,17 @@ int main()
 #endif
 
 #if 1
-  char str3[10];
+  char str3[10]="";
+//  std::vector<char> str3;
 
 //  Ranges::UTFView<Ranges::UTF8,Ranges::RangeView<char [10]> > x(str3);
   Ranges::UTFView<Ranges::UTF8,char [10]> x(str3);
 //  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<char [10]> > x(str3);
 //  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<char *> > x(str3);
-//  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<unsigned char *> > x((unsigned char *)str3);
+//  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<unsigned char *> > x((unsigned char *)str3); // unlimited
+//  Ranges::UTFView<Ranges::UTF8,std::vector<char> > x(str3);
+//  Ranges::UTFView<Ranges::UTF8,Ranges::expansible<std::vector<char> > > x(str3);
+
   unsigned int c2=0x13456;
   if (x.put(c2)) {
     printf("%02x %02x %02x %02x\n",(unsigned char)str3[0],(unsigned char)str3[1],(unsigned char)str3[2],(unsigned char)str3[3]);
