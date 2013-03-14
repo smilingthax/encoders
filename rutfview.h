@@ -43,51 +43,7 @@ using UTFEncoding::CharInfo;
 using namespace UTFEncoding::detail;
 
 template <typename BaseView>
-struct fwd_all {
-
-  static bool get(BaseView &view,CharInfo &ret,UTF16 *) { // {{{
-    unsigned short c0;
-    if (!view.get(c0)) return false;
-    if (getFirstUTF16(ret,c0,1)) {
-      unsigned short c1;
-      if (!view.get(c1)) return false;
-      getSecondUTF16(ret,c1);
-      if (ret.len<0) return false;
-    }
-    return true;
-  }
-  // }}}
-
-  static bool get(BaseView &view,CharInfo &ret,UTF32 *) { // {{{
-    if (!view.get(ret.ch)) return false;
-    ret.len=1;
-    return (detail::isInRange(ret.ch))&&(!detail::isSurrogate(ret.ch));
-  }
-  // }}}
-
-  static bool put(BaseView &view,unsigned int ch,UTF16 *) { // {{{
-    if ( (!detail::isInRange(ch))||
-         (detail::isSurrogate(ch)) ) return -1;
-    if (ch>0xffff) {
-      return view.put(leadSurrogate(ch),trailSurrogate(ch));
-    }
-    return view.put(ch);
-  }
-  // }}}
-
-  static bool put(BaseView &view,unsigned int ch,UTF32 *) { // {{{
-    if ( (!detail::isInRange(ch))||
-         (detail::isSurrogate(ch)) ) return -1;
-    return view.put(ch);
-  }
-  // }}}
-
-};
-
-template <typename BaseView,bool Continuous>
-struct fwd : fwd_all<BaseView> {
-  using fwd_all<BaseView>::get;
-  using fwd_all<BaseView>::put;
+struct fwd {
 
   static bool get(BaseView &view,CharInfo &ret,UTF8 *) { // {{{
     unsigned char c0;
@@ -120,6 +76,26 @@ struct fwd : fwd_all<BaseView> {
   }
   // }}}
 
+  static bool get(BaseView &view,CharInfo &ret,UTF16 *) { // {{{
+    unsigned short c0;
+    if (!view.get(c0)) return false;
+    if (getFirstUTF16(ret,c0,1)) {
+      unsigned short c1;
+      if (!view.get(c1)) return false;
+      getSecondUTF16(ret,c1);
+      if (ret.len<0) return false;
+    }
+    return true;
+  }
+  // }}}
+
+  static bool get(BaseView &view,CharInfo &ret,UTF32 *) { // {{{
+    if (!view.get(ret.ch)) return false;
+    ret.len=1;
+    return (detail::isInRange(ret.ch))&&(!detail::isSurrogate(ret.ch));
+  }
+  // }}}
+
   static bool put(BaseView &view,unsigned int ch,UTF8 *) { // {{{
     if (isSurrogate(ch)) return false;
     return rawputUTF8(view,ch);
@@ -146,6 +122,23 @@ struct fwd : fwd_all<BaseView> {
       return view.put(0xc0,0x80);
     }
     return put(view,ch,(CESU8 *)0);
+  }
+  // }}}
+
+  static bool put(BaseView &view,unsigned int ch,UTF16 *) { // {{{
+    if ( (!detail::isInRange(ch))||
+         (detail::isSurrogate(ch)) ) return -1;
+    if (ch>0xffff) {
+      return view.put(leadSurrogate(ch),trailSurrogate(ch));
+    }
+    return view.put(ch);
+  }
+  // }}}
+
+  static bool put(BaseView &view,unsigned int ch,UTF32 *) { // {{{
+    if ( (!detail::isInRange(ch))||
+         (detail::isSurrogate(ch)) ) return -1;
+    return view.put(ch);
   }
   // }}}
 
@@ -238,97 +231,6 @@ private:
 
 };
 
-template <typename BaseView>
-struct fwd<BaseView,true> : fwd_all<BaseView> { // continuous
-  using fwd_all<BaseView>::get;
-  using fwd_all<BaseView>::put;
-
-  static bool get(BaseView &view,CharInfo &ret,UTF8 *) { // {{{
-    ret=rawgetUTF8(view.ptr(),view.size());
-    if (ret.len<=0) {
-      return false;
-    }
-    view.next(ret.len);
-    return (!isSurrogate(ret.ch));
-  }
-  // }}}
-
-  static bool get(BaseView &view,CharInfo &ret,CESU8 *) { // {{{
-    ret=rawgetUTF8(view.ptr(),view.size());
-    if (ret.len<=0) return false;
-    view.next(ret.len);
-    return (getMoreCESU8(view,ret));
-  }
-  // }}}
-
-  static bool get(BaseView &view,CharInfo &ret,ModifiedUTF8 *) { // {{{
-    if ( (view.size()>=2)&&
-         (view.ptr()[0]==0xc0)&&(view.ptr()[1]==0x80) ) {
-      ret.ch=0;
-      ret.len=2;
-      view.next(2);
-      return true;
-    }
-    return get(view,ret,(CESU8 *)0);
-  }
-  // }}}
-
-  static bool put(BaseView &view,unsigned int ch,UTF8 *) { // {{{
-    if (isSurrogate(ch)) return false;
-    const signed char len=enclenUTF8(ch);
-    if ( (len<=0)||(!view.request(len)) ) {
-      return false;
-    } else if (!rawputUTF8(view.ptr(),ch,len)) {
-      return false;
-    }
-    view.next(len);
-    return true;
-  }
-  // }}}
-
-  static bool put(BaseView &view,unsigned int ch,CESU8 *) { // {{{
-    if (!isInRange(ch)) return false;
-    if (ch>0xffff) {
-      if (view.request(6)) return false;
-      unsigned short c0=leadSurrogate(ch),
-                     c1=trailSurrogate(ch);
-      if ( (!rawputUTF8(view.ptr(),c0,3))||
-           (!rawputUTF8(view.ptr()+3,c1,3)) ) {
-        return false;
-      }
-      view.next(6);
-      return true;
-    }
-    return put(view,ch,(UTF8 *)0);
-  }
-  // }}}
-
-  static bool put(BaseView &view,unsigned int ch,ModifiedUTF8 *) { // {{{
-    if (ch==0) {
-      return view.put(0xc0,0x80);
-    }
-    return put(view,ch,(CESU8 *)0);
-  }
-  // }}}
-
-private:
-  static bool getMoreCESU8(BaseView &view,CharInfo &ret) { // {{{
-    if (isLeadSurrogate(ret.ch)) {
-      CharInfo r2=rawgetUTF8(view.ptr(),view.size());
-      if (r2.len<0) return false;
-      view.next(r2.len);
-      ret.len+=r2.len;
-      getSecondUTF16(ret,r2.ch); // will -1, if not a trail surrogate
-      if (ret.len<=0) return false;
-    } else if (isTrailSurrogate(ret.ch)) {
-      return false;
-    }
-    return true;
-  }
-  // }}}
-
-};
-
 } // namespace detail
 
 template <typename Encoding,typename RangeOrView>
@@ -340,7 +242,7 @@ struct UTFView : View_base<RangeOrView> {
   explicit UTFView(const typename base_t::ctor_t &rov) : view(rov) {}
 
   bool get(UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
-    return detail::fwd<view_t,base_t::continuous>::get(view,ret,(Encoding *)0);
+    return detail::fwd<view_t>::get(view,ret,(Encoding *)0);
   }
 
   bool get(unsigned int &ret) {
@@ -353,7 +255,7 @@ struct UTFView : View_base<RangeOrView> {
   }
 
   bool put(unsigned int ch) {
-    return detail::fwd<view_t,base_t::continuous>::put(view,ch,(Encoding *)0);
+    return detail::fwd<view_t>::put(view,ch,(Encoding *)0);
   }
 
 private:
