@@ -94,17 +94,17 @@ struct LEfwd {
 
 template <typename Type>
 struct LEEncoder {
-  template <typename BaseView>
+  template <typename Derived> // CRTP
   struct Impl {
     static const size_t factor=sizeof(Type);
 
   protected:
-    bool get_one(BaseView &view,Type &ret) {
-      return LEfwd<BaseView>::get(view,ret);
+    bool get_one(Type &ret) {
+      return LEfwd<typename Derived::view_t>::get(static_cast<Derived *>(this)->view,ret);
     }
 
     template <typename T>
-    bool get_one(BaseView &view,T &ret) {
+    bool get_one(T &ret) {
       Type tmp;
       const bool res=get(tmp);
       if (res) {
@@ -113,8 +113,8 @@ struct LEEncoder {
       return res;
     }
 
-    bool put_one(BaseView &view,Type ch) {
-      return LEfwd<BaseView>::put(view,ch);
+    bool put_one(Type ch) {
+      return LEfwd<typename Derived::view_t>::put(static_cast<Derived *>(this)->view,ch);
     }
   };
 

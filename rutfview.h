@@ -230,15 +230,15 @@ private:
 
 template <typename Encoding>
 struct UTFEncoder {
-  template <typename BaseView>
+  template <typename Derived>
   struct Impl {
 
-    bool get(BaseView &view,UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
-      return UTFfwd<BaseView>::get(view,ret,(Encoding *)0);
+    bool get(UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
+      return UTFfwd<typename Derived::view_t>::get(static_cast<Derived *>(this)->view,ret,(Encoding *)0);
     }
 
   protected:
-    bool get_one(BaseView &view,unsigned int &ret) {
+    bool get_one(unsigned int &ret) {
       UTFEncoding::CharInfo tmp;
       const bool res=get(tmp);
       if (res) {
@@ -247,8 +247,8 @@ struct UTFEncoder {
       return res;
     }
 
-    bool put_one(BaseView &view,unsigned int ch) {
-      return UTFfwd<BaseView>::put(view,ch,(Encoding *)0);
+    bool put_one(unsigned int ch) {
+      return UTFfwd<typename Derived::view_t>::put(static_cast<Derived *>(this)->view,ch,(Encoding *)0);
     }
   };
 
@@ -267,9 +267,6 @@ struct UTFView : detail::UTFEncoder<Encoding>::template View<RangeOrView,CheckSi
 
   explicit UTFView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : enc_t(rov) {}
   explicit UTFView(const typename base_t::ctor_t &rov) : enc_t(rov) {}
-
-// bool get(UTFEncoding::CharInfo &ret) // advanced interface
-
 };
 
 } // namespace Ranges

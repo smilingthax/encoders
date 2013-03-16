@@ -13,7 +13,7 @@ template <template<typename> class Encoding_Impl>
 struct EncodingView_Injector {
 
   template <typename RangeOrView,bool Sized>
-  struct Impl : View_base<RangeOrView>, Encoding_Impl<typename View_base<RangeOrView>::view_t> {
+  struct Impl : View_base<RangeOrView>, Encoding_Impl<Impl<RangeOrView,Sized> > {
     typedef View_base<RangeOrView> base_t;
     typedef typename base_t::view_t view_t;
 
@@ -24,20 +24,13 @@ struct EncodingView_Injector {
     bool request(size_t minlen) {
       return view.request(minlen);
     }
-    template <typename T>
-    inline bool get_one(T &ret) {
-      return Encoding_Impl<view_t>::get_one(view,ret);
-    }
-    template <typename T>
-    inline bool put_one(const T &ret) {
-      return Encoding_Impl<view_t>::put_one(view,ret);
-    }
   private:
+    friend struct Encoding_Impl<Impl<RangeOrView,Sized> >;
     view_t view;
   };
 
   template <typename RangeOrView>
-  struct Impl<RangeOrView,true> : View_base<RangeOrView>, Encoding_Impl<typename View_base<RangeOrView>::view_t> {
+  struct Impl<RangeOrView,true> : View_base<RangeOrView>, Encoding_Impl<Impl<RangeOrView,true> > {
     typedef View_base<RangeOrView> base_t;
     typedef typename base_t::view_t view_t;
 
@@ -51,15 +44,8 @@ struct EncodingView_Injector {
     size_t size() const {
       return view.size();
     }
-    template <typename T>
-    inline bool get_one(T &ret) {
-      return Encoding_Impl<view_t>::get_one(view,ret);
-    }
-    template <typename T>
-    inline bool put_one(const T &ret) {
-      return Encoding_Impl<view_t>::put_one(view,ret);
-    }
   private:
+    friend struct Encoding_Impl<Impl<RangeOrView,true> >;
     view_t view;
   };
 
