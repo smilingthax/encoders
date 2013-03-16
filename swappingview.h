@@ -1,7 +1,7 @@
 #ifndef _SWAPPINGVIEW_H
 #define _SWAPPINGVIEW_H
 
-#include "rangeview.h"
+#include "viewbase.h"
 
 #if defined(__GXX_EXPERIMENTAL_CXX0X__)||(__cplusplus>=201103L)
   #define EE_CPP11

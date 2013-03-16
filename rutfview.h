@@ -43,7 +43,7 @@ using UTFEncoding::CharInfo;
 using namespace UTFEncoding::detail;
 
 template <typename BaseView>
-struct fwd {
+struct UTFfwd {
 
   static bool get(BaseView &view,CharInfo &ret,UTF8 *) { // {{{
     unsigned char c0;
@@ -242,7 +242,7 @@ struct UTFView : View_base<RangeOrView> {
   explicit UTFView(const typename base_t::ctor_t &rov) : view(rov) {}
 
   bool get(UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
-    return detail::fwd<view_t>::get(view,ret,(Encoding *)0);
+    return detail::UTFfwd<view_t>::get(view,ret,(Encoding *)0);
   }
 
   bool get(unsigned int &ret) {
@@ -255,7 +255,7 @@ struct UTFView : View_base<RangeOrView> {
   }
 
   bool put(unsigned int ch) {
-    return detail::fwd<view_t>::put(view,ch,(Encoding *)0);
+    return detail::UTFfwd<view_t>::put(view,ch,(Encoding *)0);
   }
 
 private:

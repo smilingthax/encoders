@@ -1,7 +1,8 @@
 #ifndef _RTYPEVIEW_H
 #define _RTYPEVIEW_H
 
-#include "swappingview.h" // includes "rangeview.h"
+#include "encodingview.h" // includes "rangeview.h"
+#include "swappingview.h"
 #include <stdint.h>
 
 #if defined(__GXX_EXPERIMENTAL_CXX0X__)||(__cplusplus>=201103L)
@@ -32,7 +33,7 @@ namespace detail {
 #endif
 
 template <typename BaseView>
-struct LEEncoder {
+struct LEfwd {
   static bool get(BaseView &view,uint8_t &ret) { // {{{
     unsigned char c0;
     const bool res=view.get(c0); // increments
@@ -91,40 +92,42 @@ struct LEEncoder {
 
 };
 
+template <typename Type>
+struct LEEncoding {
+  template <typename BaseView>
+  struct Impl {
+    static const size_t factor=sizeof(Type);
+
+  protected:
+    bool get_one(BaseView &view,Type &ret) {
+      return LEfwd<BaseView>::get(view,ret);
+    }
+
+    template <typename T>
+    bool get_one(BaseView &view,T &ret) {
+      Type tmp;
+      const bool res=get(tmp);
+      if (res) {
+        ret=tmp;
+      }
+      return res;
+    }
+
+    bool put_one(BaseView &view,Type ch) {
+      return LEfwd<BaseView>::put(view,ch);
+    }
+  };
+};
+
 } // namespace detail
 
-template <typename Type,typename RangeOrView>
-struct LETypeView : View_base<RangeOrView> {
-  typedef View_base<RangeOrView> base_t;
-  typedef typename base_t::view_t view_t;
+template <typename Type,typename RangeOrView,bool CheckSize=true>
+struct LETypeView : EncodingView<detail::LEEncoding<Type>::template Impl,RangeOrView,CheckSize> {
+  typedef EncodingView<detail::LEEncoding<Type>::template Impl,RangeOrView,CheckSize> enc_t;
+  typedef typename enc_t::base_t base_t;
 
-  explicit LETypeView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : view(rov) {}
-  explicit LETypeView(const typename base_t::ctor_t &rov) : view(rov) {}
-
-  size_t size() const { // only if base_t::sized
-    return view.size()/sizeof(Type);
-  }
-
-  bool get(Type &ret) {
-    return detail::LEEncoder<view_t>::get(view,ret);
-  }
-
-  template <typename T>
-  bool get(T &ret) {
-    Type tmp;
-    const bool res=get(tmp);
-    if (res) {
-      ret=tmp;
-    }
-    return res;
-  }
-
-  bool put(Type ch) {
-    return detail::LEEncoder<view_t>::put(view,ch);
-  }
-
-private:
-  view_t view;
+  explicit LETypeView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : enc_t(rov) {}
+  explicit LETypeView(const typename base_t::ctor_t &rov) : enc_t(rov) {}
 };
 
 #ifdef EE_CPP11
