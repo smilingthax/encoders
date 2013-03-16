@@ -136,37 +136,47 @@ struct LETypeView : detail::LEEncoder<Type>::template View<RangeOrView,CheckSize
 };
 
 #ifdef EE_CPP11
-template <typename Type,typename RangeOrView>
-using BETypeView = LETypeView<Type,SwappingView<RangeOrView>>;
+template <typename Type,typename RangeOrView,bool CheckSize=true>
+using BETypeView = LETypeView<Type,SwappingView<RangeOrView>,CheckSize>;
 
 #else    // no template typedef in C++03
-template <typename Type,typename RangeOrView>
-struct BETypeView : LETypeView<Type,SwappingView<RangeOrView> > {
+template <typename Type,typename RangeOrView,bool CheckSize=true>
+struct BETypeView : LETypeView<Type,SwappingView<RangeOrView>,CheckSize> {
   explicit BETypeView(typename detail::remove_cv<RangeOrView>::type &rov)
-    : LETypeView<Type,SwappingView<RangeOrView> >(rov)
+    : LETypeView<Type,SwappingView<RangeOrView>,CheckSize>(rov)
   {}
   explicit BETypeView(const RangeOrView &rov)
-    : LETypeView<Type,SwappingView<RangeOrView> >(rov)
+    : LETypeView<Type,SwappingView<RangeOrView>,CheckSize>(rov)
   {}
 };
 #endif
 
-template <typename RangeOrView>
+template <typename RangeOrView,bool CheckSize=true>
 struct TypeView {
   // RangeView's char can be 'like' s8 or u8!
-  typedef LETypeView< int8_t,RangeOrView> s8; // LE8 == BE8
-  typedef LETypeView<uint8_t,RangeOrView> u8;
+  typedef LETypeView< int8_t,RangeOrView,CheckSize> s8; // LE8 == BE8
+  typedef LETypeView<uint8_t,RangeOrView,CheckSize> u8;
 
-  typedef LETypeView< int16_t,RangeOrView> LEs16;
-  typedef LETypeView<uint16_t,RangeOrView> LEu16;
-  typedef LETypeView< int32_t,RangeOrView> LEs32;
-  typedef LETypeView<uint32_t,RangeOrView> LEu32;
+  typedef LETypeView< int16_t,RangeOrView,CheckSize> LEs16;
+  typedef LETypeView<uint16_t,RangeOrView,CheckSize> LEu16;
+  typedef LETypeView< int32_t,RangeOrView,CheckSize> LEs32;
+  typedef LETypeView<uint32_t,RangeOrView,CheckSize> LEu32;
 
-  typedef BETypeView< int16_t,RangeOrView> BEs16;
-  typedef BETypeView<uint16_t,RangeOrView> BEu16;
-  typedef BETypeView< int32_t,RangeOrView> BEs32;
-  typedef BETypeView<uint32_t,RangeOrView> BEu32;
+  typedef BETypeView< int16_t,RangeOrView,CheckSize> BEs16;
+  typedef BETypeView<uint16_t,RangeOrView,CheckSize> BEu16;
+  typedef BETypeView< int32_t,RangeOrView,CheckSize> BEs32;
+  typedef BETypeView<uint32_t,RangeOrView,CheckSize> BEu32;
 };
+
+/*
+// TODO? C++03:   #define TEMPLATE_USING(params,name,type)  ...  [ctor forwarding... ]
+struct Types {
+  template <typename RangeOrView,bool CheckSize=true>
+  using s8 = detail::LEEncoder<int8_t>::template View<RangeOrView,CheckSize>::type;
+
+  using BEs16 = detail::LEEncoder<int16_t>::template View<SwappingView<RangeOrView>,CheckSize>::type;
+}
+*/
 
 } // namespace Ranges
 #undef EE_CPP11
