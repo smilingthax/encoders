@@ -5,10 +5,7 @@
 
 // TODO?! remove 'advanced interface' ?!
 
-// TODO... actually an Encoder.
-// ... insert LETypeView[problem: really an Encoder -> Range trait needed] and/or SwappingView for BE16/BE32  ...
-
-/*     UTF16LE  =^=  UTFView<UTF16,TypeView<Range>::LE16>   // FIXME: TypeView<Range> is a RangeContainer, not a Range
+/*     UTF16LE  =^=  UTFView<UTF16,TypeView<Range>::LE16>
     [continuous]      [non-continuous, but (todo) sized]
 */
 
@@ -18,7 +15,7 @@
 #include "utfbase.h"
 #include "utfbase.tcc"
 
-// FIXME: #define EE_CPP11
+// FIXME? #define EE_CPP11
 
 namespace Ranges {
 
@@ -231,35 +228,48 @@ private:
 
 };
 
+template <typename Encoding>
+struct UTFEncoder {
+  template <typename BaseView>
+  struct Impl {
+
+    bool get(BaseView &view,UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
+      return UTFfwd<BaseView>::get(view,ret,(Encoding *)0);
+    }
+
+  protected:
+    bool get_one(BaseView &view,unsigned int &ret) {
+      UTFEncoding::CharInfo tmp;
+      const bool res=get(tmp);
+      if (res) {
+        ret=tmp.ch;
+      }
+      return res;
+    }
+
+    bool put_one(BaseView &view,unsigned int ch) {
+      return UTFfwd<BaseView>::put(view,ch,(Encoding *)0);
+    }
+  };
+
+  template <typename RangeOrView,bool CheckSize=true>
+  struct View {
+    typedef EncodingView<Impl,RangeOrView,CheckSize> type;
+  };
+};
+
 } // namespace detail
 
-template <typename Encoding,typename RangeOrView>
-struct UTFView : View_base<RangeOrView> {
-  typedef View_base<RangeOrView> base_t;
-  typedef typename base_t::view_t view_t;
+template <typename Encoding,typename RangeOrView,bool CheckSize=true>
+struct UTFView : detail::UTFEncoder<Encoding>::template View<RangeOrView,CheckSize>::type {
+  typedef typename detail::UTFEncoder<Encoding>::template View<RangeOrView,CheckSize>::type enc_t;
+  typedef typename enc_t::base_t base_t;
 
-  explicit UTFView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : view(rov) {}
-  explicit UTFView(const typename base_t::ctor_t &rov) : view(rov) {}
+  explicit UTFView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : enc_t(rov) {}
+  explicit UTFView(const typename base_t::ctor_t &rov) : enc_t(rov) {}
 
-  bool get(UTFEncoding::CharInfo &ret) { // advanced interface // NOTE: ret.len might be wrong when false is returned!
-    return detail::UTFfwd<view_t>::get(view,ret,(Encoding *)0);
-  }
+// bool get(UTFEncoding::CharInfo &ret) // advanced interface
 
-  bool get(unsigned int &ret) {
-    UTFEncoding::CharInfo tmp;
-    const bool res=get(tmp);
-    if (res) {
-      ret=tmp.ch;
-    }
-    return res;
-  }
-
-  bool put(unsigned int ch) {
-    return detail::UTFfwd<view_t>::put(view,ch,(Encoding *)0);
-  }
-
-private:
-  view_t view;
 };
 
 } // namespace Ranges

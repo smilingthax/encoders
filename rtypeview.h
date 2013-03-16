@@ -93,7 +93,7 @@ struct LEfwd {
 };
 
 template <typename Type>
-struct LEEncoding {
+struct LEEncoder {
   template <typename BaseView>
   struct Impl {
     static const size_t factor=sizeof(Type);
@@ -117,13 +117,18 @@ struct LEEncoding {
       return LEfwd<BaseView>::put(view,ch);
     }
   };
+
+  template <typename RangeOrView,bool CheckSize=true>
+  struct View {
+    typedef EncodingView<Impl,RangeOrView,CheckSize> type;
+  };
 };
 
 } // namespace detail
 
 template <typename Type,typename RangeOrView,bool CheckSize=true>
-struct LETypeView : EncodingView<detail::LEEncoding<Type>::template Impl,RangeOrView,CheckSize> {
-  typedef EncodingView<detail::LEEncoding<Type>::template Impl,RangeOrView,CheckSize> enc_t;
+struct LETypeView : detail::LEEncoder<Type>::template View<RangeOrView,CheckSize>::type {
+  typedef typename detail::LEEncoder<Type>::template View<RangeOrView,CheckSize>::type enc_t;
   typedef typename enc_t::base_t base_t;
 
   explicit LETypeView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : enc_t(rov) {}

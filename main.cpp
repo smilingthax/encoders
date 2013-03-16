@@ -89,7 +89,7 @@ int main()
 //  std::vector<char> str3;
 
 //  Ranges::UTFView<Ranges::UTF8,Ranges::RangeView<char [10]> > x(str3);
-  Ranges::UTFView<Ranges::UTF8,char [10]> x(str3);
+//  Ranges::UTFView<Ranges::UTF8,char [10]> x(str3);
 //  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<char [10]> > x(str3);
 //  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<char *> > x(str3);
 //  Ranges::UTFView<Ranges::UTF8,Ranges::SwappingView<unsigned char *> > x((unsigned char *)str3); // unlimited
@@ -97,7 +97,7 @@ int main()
 //  Ranges::UTFView<Ranges::UTF8,Ranges::expansible<std::vector<char> > > x(str3);
 
 //  Ranges::UTFView<Ranges::UTF16,char [10]> x(str3); // WRONG: will write UTF16 output (shorts) into bytes
-//  Ranges::UTFView<Ranges::UTF16,Ranges::TypeView<char [10]>::LEu16> x(str3);
+  Ranges::UTFView<Ranges::UTF16,Ranges::TypeView<char [10]>::BEu16> x(str3);
 
   unsigned int c2=0x13456;
   if (x.put(c2)) {
