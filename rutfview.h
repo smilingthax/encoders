@@ -11,9 +11,11 @@
 
 // NOTE: only for value_type=char*  (or short*/int* with UTF16/UTF32)
 
-#include "rangeview.h"
+#include "encodingview.h"
 #include "utfbase.h"
 #include "utfbase.tcc"
+
+#include "rtypeview.h"
 
 // FIXME? #define EE_CPP11
 
@@ -267,6 +269,19 @@ struct UTFView : detail::UTFEncoder<Encoding>::template View<RangeOrView,CheckSi
 
   explicit UTFView(typename detail::remove_cv<typename base_t::ctor_t>::type &rov) : enc_t(rov) {}
   explicit UTFView(const typename base_t::ctor_t &rov) : enc_t(rov) {}
+};
+
+template <typename RangeOrView,bool CheckSize=true>
+struct UTFViews { // name?
+  typedef UTFView< ::Ranges::UTF8,RangeOrView,CheckSize> UTF8;
+  typedef UTFView< ::Ranges::CESU8,RangeOrView,CheckSize> CESU8;
+  typedef UTFView< ::Ranges::ModifiedUTF8,RangeOrView,CheckSize> ModifiedUTF8;
+
+  typedef UTFView<UTF16,LETypeView<uint16_t,RangeOrView,false>,CheckSize> UTF16LE;
+  typedef UTFView<UTF16,BETypeView<uint16_t,RangeOrView,false>,CheckSize> UTF16BE;
+
+  typedef UTFView<UTF32,LETypeView<uint32_t,RangeOrView,false>,CheckSize> UTF32LE;
+  typedef UTFView<UTF32,BETypeView<uint32_t,RangeOrView,false>,CheckSize> UTF32BE;
 };
 
 } // namespace Ranges
