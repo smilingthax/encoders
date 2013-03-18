@@ -3,6 +3,7 @@
 #include "rtypeview.h"
 #include <stdio.h>
 #include "rutfview.h"
+#include "rbackslashescview.h"
 
 namespace Ranges {
 
