@@ -56,7 +56,6 @@ struct BackslashEncoder {
 
 } // namespace detail
 
-// TODO: declare static const char hex[] outside ?! (need c/c++ file)
 struct BEV_Escapers {
   static const unsigned char backslash='\\';
 
@@ -122,7 +121,7 @@ struct BEV_Escapers {
   // }}}
 };
 
-/* TODO: real fsm impl of hex-unescape, etc.
+/* TODO?! real fsm impl of hex-unescape, etc.  (get rid of template<View>)
   problem: hex-unescape basically has multiple variants: \u[[:xdigit:]]{4}, \x[[:xdigit:]]{1,2}, \x[[:xdigit:]]{1,}
   also: handling of different 'error' conditions, e.g. for "\x":  error(C), just "\\x"(PHP), ...
 problem: output-value is not really 'state-machine'
